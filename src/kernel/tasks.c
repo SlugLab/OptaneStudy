@@ -1,24 +1,24 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #define _GNU_SOURCE
 
-#include <linux/compiler.h>
-#include <linux/string.h>
-#include <linux/init.h>
-#include <linux/parser.h>
-#include <linux/uaccess.h>
-#include <linux/io.h>
-#include <linux/seq_file.h>
-#include <linux/mm.h>
-#include <linux/ctype.h>
-#include <linux/bitops.h>
-#include <linux/magic.h>
-#include <linux/random.h>
-#include <linux/cred.h>
-#include <linux/list.h>
-#include <linux/delay.h>
-#include <asm/simd.h>
-#include <asm/fpu/api.h>
-#include <linux/kthread.h>
+// #include <linux/compiler.h>
+// #include <linux/string.h>
+// #include <linux/init.h>
+// #include <linux/parser.h>
+// #include <linux/uaccess.h>
+// #include <linux/io.h>
+// #include <linux/seq_file.h>
+// #include <linux/mm.h>
+// #include <linux/ctype.h>
+// #include <linux/bitops.h>
+// #include <linux/magic.h>
+// #include <linux/random.h>
+// #include <linux/cred.h>
+// #include <linux/list.h>
+// #include <linux/delay.h>
+// #include <asm/simd.h>
+// #include <asm/fpu/api.h>
+// #include <linux/kthread.h>
 #include "lattester.h"
 #include "memaccess.h"
 #include "common.h"
@@ -29,8 +29,8 @@
 
 //#define KSTAT 1
 
-#define kr_info(string, args...) \
-            do { printk(KERN_INFO "{%d}" string, ctx->core_id, ##args); } while (0)
+// #define kr_info(string, args...) \
+//             do { printk(KERN_INFO "{%d}" string, ctx->core_id, ##args); } while (0)
 
 inline void wait_for_stop(void)
 {

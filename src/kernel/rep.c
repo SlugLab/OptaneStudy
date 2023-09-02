@@ -6,7 +6,7 @@
 #include <linux/dax.h>
 #include <linux/exportfs.h>
 #include <linux/fs.h>
-#include <linux/genhd.h>
+// #include <linux/genhd.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/list.h>

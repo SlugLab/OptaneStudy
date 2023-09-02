@@ -14,11 +14,7 @@ avx2_supported := $(call as-instr,vpgatherdd %ymm0$(comma)(%eax$(comma)%ymm1\
 
 AEP := $(shell cat /proc/cpuinfo  | grep clwb | wc -l)
 
-ifeq ($(AEP), 0)
-  ccflags-y+= -DNOAVX512
-else
-  ccflags-y+= -DAEP_SUPPORTED
-endif
+ccflags-y+= -DAEP_SUPPORTED
 
 ifeq ($(PERF), 1)
   ccflags-y+=-DUSE_PERF
@@ -28,13 +24,11 @@ endif
 ccflags-y+= -DFENCE
 
 all:
-	make -C /lib/modules/$(shell uname -r)/build M=`pwd`
 	gcc -O2 -o gen_tasks gen_tasks.c $(ccflags-y)
 
 debug:
 	gcc -O0 -o debug -mavx -g debug.c memaccess.c  $(ccflags-y)
 
 clean:
-	make -C /lib/modules/$(shell uname -r)/build M=`pwd` clean
 	rm -f tasks.py gen_tasks debug *.pyc -f 
 

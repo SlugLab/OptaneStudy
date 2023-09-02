@@ -294,7 +294,6 @@ static lfs_test_stridefunc_t lfs_stride_bw[] = {
 	&stride_nt,
 	&stride_store,
 #ifdef AEP_SUPPORTED
-	&stride_storeclwb,
 #endif
 };
 
@@ -303,7 +302,6 @@ static lfs_test_randfunc_t lfs_size_bw[] = {
 	&sizebw_nt,
 	&sizebw_store,
 #ifdef AEP_SUPPORTED
-	&sizebw_storeclwb,
 #endif
 };
 
@@ -312,7 +310,6 @@ static lfs_test_seq_t lfs_seq_bw[] = {
 	&seq_nt,
 	&seq_store,
 #ifdef AEP_SUPPORTED
-	&seq_clwb
 #endif
 };
 

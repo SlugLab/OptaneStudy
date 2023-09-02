@@ -10,6 +10,7 @@
  * UCSD Non-Volatile Systems Lab
  */
 
+#include <stdint.h>
 #if __KERNEL__
 #include <linux/module.h>
 #include <linux/kernel.h>
