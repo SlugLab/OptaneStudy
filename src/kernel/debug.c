@@ -45,56 +45,68 @@ uint32_t *lfs_random_array;
     }                                                                                                                  \
     c_store_start = (((unsigned long)c_store_start_hi) << 32) | c_store_start_lo;                                      \
     c_ntload_start = (((unsigned long)c_ntload_start_hi) << 32) | c_ntload_start_lo;                                   \
-    c_ntload_end = (((unsigned long)c_ntload_end_hi) << 32) | c_ntload_end_lo;                                         \
-    printf("[%s] count %ld total %ld ns, average %ld ns, cycle %ld - %ld - %ld.\n", #job_name, count, diff,            \
-           diff / count, c_store_start, c_ntload_start, c_ntload_end);
+    c_ntload_end = (((unsigned long)c_ntload_end_hi) << 32) | c_ntload_end_lo;
 
 int main() {
-    char *buf = malloc(4096 * 1024);
-    buf = buf + 64 - (((long)buf) % 64);
     int i;
+    long long aggregated = 0, aggregated2 = 0;
     long seed = 0xdeadbeef1245678;
     uint64_t a = 0xfc0;
     int access_size = 64;
     int stride_size = 64;
     int delay = 64;
     int count = 32;
+    for (i = 0; i < 100000; i++) {
+        char *buf = malloc(4096 * 1024);
+        buf = buf + 64 - (((long)buf) % 64);
+        RAW_BEFORE_WRITE
+        sizebw_store(buf, access_size, count, &seed, a);
+        asm volatile("mfence \n" :::);
+        RAW_FINAL("sizebw_store")
+        aggregated += diff;
+        aggregated2 += c_ntload_end - c_store_start;
+    }
 
-    //     for (i = 0; i < 8; i++) {
-    //         buf[i] = 'a';
-    //     }
+    printf("sizebw_store aggregated %lld %lld\n", aggregated / 100000 / count, aggregated2 / 100000 / count);
+    aggregated = 0;
+    aggregated2 = 0;
+    for (i = 0; i < 100000; i++) {
+        char *buf = malloc(4096 * 1024);
+        buf = buf + 64 - (((long)buf) % 64);
+        RAW_BEFORE_WRITE
+        sizebw_load(buf, access_size, count, &seed, a);
+        asm volatile("mfence \n" :::);
+        RAW_FINAL("sizebw_load")
+        aggregated += diff;
+        aggregated2 += c_ntload_end - c_store_start;
+    }
+    printf("sizebw_load aggregated %lld %lld\n", aggregated / 100000 / count, aggregated2 / 100000 / count);
+    aggregated = 0;
+    aggregated2 = 0;
 
-    // RAW_BEFORE_WRITE
-    // RAW_BEFORE_READ
-    // seq(buf, access_size, stride_size, 0, count);
-    // asm volatile("mfence \n" :::);
-    // RAW_FINAL("raw-combined")
-
-    //     RAW_BEFORE_WRITE
-    //     RAW_BEFORE_READ
-    //     stride_storeclwb(buf, access_size, stride_size, 0, count);
-    //     asm volatile("mfence \n" :::);
-    //     RAW_FINAL("raw-combined")
-
-    // RAW_BEFORE_WRITE
-    // RAW_BEFORE_READ
-    // stride_load(buf, access_size, stride_size, 0, count);
-    // asm volatile("mfence \n" :::);
-    // RAW_FINAL("raw-combined")
-
-    //     sizebw_nt(buf, 64, 128, &seed, a);
-    //     stride_nt(buf, 64, 0, delay, count);
-
-    //     RAW_BEFORE_WRITE
-    //     RAW_BEFORE_READ
-    //    sizebw_nt(buf, 64, 128, &seed,  a);
-    //        asm volatile("mfence \n" :::);
-    //     RAW_FINAL("raw-combined")
-
-    RAW_BEFORE_WRITE
-    RAW_BEFORE_READ
-    sizebw_store(buf, access_size, count, &seed, a);
-    asm volatile("mfence \n" :::);
-    RAW_FINAL("raw-combined")
+    for (i = 0; i < 100000; i++) {
+        char *buf = malloc(4096 * 1024);
+        buf = buf + 64 - (((long)buf) % 64);
+        RAW_BEFORE_WRITE
+        sizebw_storeclwb(buf, access_size, count, &seed, a);
+        asm volatile("mfence \n" :::);
+        RAW_FINAL("sizebw_storeclwb")
+        aggregated += diff;
+        aggregated2 += c_ntload_end - c_store_start;
+    }
+    printf("sizebw_storeclwb aggregated %lld %lld\n", aggregated / 100000 / count, aggregated2 / 100000 / count);
+    aggregated = 0;
+    aggregated2 = 0;
+    for (i = 0; i < 100000; i++) {
+        char *buf = malloc(4096 * 1024);
+        buf = buf + 64 - (((long)buf) % 64);
+        RAW_BEFORE_WRITE
+        sizebw_nt(buf, access_size, count, &seed, a);
+        asm volatile("mfence \n" :::);
+        RAW_FINAL("sizebw_nt")
+        aggregated += diff;
+        aggregated2 += c_ntload_end - c_store_start;
+    }
+    printf("sizebw_nt aggregated %lld %lld\n", aggregated / 100000 / count, aggregated2 / 100000 / count);
     return 0;
 }
