@@ -1,0 +1,11 @@
+*.o
+*.cmd
+*.bak
+module*
+Module*
+*.mod
+*.ko
+debug
+gen_tasks
+*.d
+build

@@ -156,9 +156,9 @@ inline void latencyfs_new_threads(struct latency_sbi *sbi, bench_func_t func)
 			pr_info("Warning: PerDIMM alignment with 6+ threads\n");
 	}
 
-	sbi->workers = kmalloc(sizeof(struct task_struct *) * cnt, GFP_KERNEL);
-	sbi->ctx = kmalloc(sizeof(struct latencyfs_worker_ctx) * cnt, GFP_KERNEL);
-	sbi->timing = kmalloc(sizeof(struct latencyfs_timing) * cnt, GFP_KERNEL);
+	sbi->workers = kmalloc(sizeof(struct task_struct *) * cnt, GFP_ATOMIC);
+	sbi->ctx = kmalloc(sizeof(struct latencyfs_worker_ctx) * cnt, GFP_ATOMIC);
+	sbi->timing = kmalloc(sizeof(struct latencyfs_timing) * cnt, GFP_ATOMIC);
 	for (i = 0; i < cnt; i++) {
 		ctx = &sbi->ctx[i];
 		ctx->sbi = sbi;
@@ -361,6 +361,7 @@ static int latencyfs_fill_super(struct super_block *sb, void *data, int silent)
 	pfn_t __pfn_t;
 	long size;
 	int ret = 0;
+	u64 part_off;
 
 	if (rep_sbi) {
 		pr_err("Already mounted\n");
@@ -374,20 +375,27 @@ static int latencyfs_fill_super(struct super_block *sb, void *data, int silent)
 		return -EINVAL;
 	}
 
-	sbi = kzalloc(sizeof(struct latency_sbi), GFP_KERNEL);
+	sbi = kzalloc(sizeof(struct latency_sbi), GFP_ATOMIC);
 	if (!sbi)
 		return -ENOMEM;
 	sb->s_fs_info = sbi;
 	sbi->sb = sb;
 	sbi->rep = rep_sbi;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 6)
-	ret = bdev_dax_supported(sb, PAGE_SIZE);
-#else
-	ret = bdev_dax_supported(sb->s_bdev, PAGE_SIZE);
+	// #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 6)
+	//   ret = bdev_dax_supported(sb, PAGE_SIZE);
+	// #else
+	// ret = dax_supported(dax_dev, sb->s_bdev);
+	// #endif
+	// pr_info("%s: dax_supported = %d; bdev->super=0x%p", __func__, ret,
+			// sb->s_bdev->bd_super);
+	#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 6)
+	if (ret) {
+	#else
+	// ret = bdev_dax_supported(sb->s_bdev, PAGE_SIZE);
+	ret = true;
 #endif
-	pr_info("%s: dax_supported = %d; bdev->super=0x%p",
-			__func__, ret, sb->s_bdev->bd_super);
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 6)
 	if (ret)
 #else
@@ -400,15 +408,16 @@ static int latencyfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	sbi->s_bdev = sb->s_bdev;
 
-	dax_dev = fs_dax_get_by_host(sb->s_bdev->bd_disk->disk_name);
-	if (!dax_dev)
-	{
+	// dax_dev = fs_dax_get_by_bdev(sb->s_bdev->bd_disk->disk_name);
+	dax_dev = fs_dax_get_by_bdev(sbi->s_bdev, &part_off, NULL, NULL);
+	if (!dax_dev) {
 		pr_err("Couldn't retrieve DAX device.\n");
 		return -EINVAL;
 	}
 
-	size = dax_direct_access(dax_dev, 0, LONG_MAX / PAGE_SIZE,
-				 &virt_addr, &__pfn_t) * PAGE_SIZE;
+  size = dax_direct_access(dax_dev, 0, LONG_MAX / PAGE_SIZE, DAX_ACCESS, &virt_addr,
+                           &__pfn_t) *
+         PAGE_SIZE;
 	if (size <= 0)
 	{
 		pr_err("direct_access failed\n");
@@ -437,8 +446,9 @@ static int latencyfs_fill_super(struct super_block *sb, void *data, int silent)
 #else
 	root->i_atime = root->i_mtime = root->i_ctime = ktime_to_timespec64(ktime_get_real());
 #endif
-	inode_init_owner(root, NULL, S_IFDIR);
-
+  inode_init_owner(&nop_mnt_idmap, root, NULL, S_IFDIR);
+	pr_info("%s: dax_supported = %d; bdev->super=0x%p",
+			__func__, ret, sb->s_bdev->bd_super);
 	sb->s_root = d_make_root(root);
 	if (!sb->s_root) {
 		pr_err("d_make_root failed\n");

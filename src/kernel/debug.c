@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include "memaccess.h"
-#include "lat.h"
+// #include ".h"
 
 #define LFS_PERMRAND_ENTRIES 0x1000
 uint32_t *lfs_random_array;
@@ -51,7 +51,7 @@ int main() {
 //		buf[i]='a';
 //	}
 
-//	latencyfs_prealloc_global_permutation_array(64);
+	latencyfs_prealloc_global_permutation_array(64);
 	sizebw_nt(buf, 64, 128, &seed,  a);
 	return 0;
 }

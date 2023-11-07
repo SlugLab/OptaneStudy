@@ -267,14 +267,20 @@ static int latencyfs_proc_open(struct inode *inode, struct file *file)
 	return single_open(file, latencyfs_print_help, inode->i_private);
 }
 
-static struct file_operations latencyfs_ops = {
-	.owner = THIS_MODULE,
-	.open = latencyfs_proc_open,
-	.read = seq_read,
-	.llseek = seq_lseek,
-	.release = single_release,
-	.write = latencyfs_proc_write,
+static struct proc_ops latencyfs_ops = {
+	.proc_open = latencyfs_proc_open,
+	.proc_read = seq_read,
+	.proc_lseek = seq_lseek,
+	.proc_release = single_release,
+	.proc_write = latencyfs_proc_write,
 };
+// static const struct proc_ops srm_env_proc_ops = {
+// 	.proc_open	= srm_env_proc_open,
+// 	.proc_read	= seq_read,
+// 	.proc_lseek	= seq_lseek,
+// 	.proc_release	= single_release,
+// 	.proc_write	= srm_env_proc_write,
+// };
 
 int latencyfs_proc_init(void)
 {

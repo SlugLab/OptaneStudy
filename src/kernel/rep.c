@@ -6,7 +6,7 @@
 #include <linux/dax.h>
 #include <linux/exportfs.h>
 #include <linux/fs.h>
-#include <linux/genhd.h>
+// #include <linux/genhd.h>
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/list.h>
@@ -49,7 +49,7 @@ static inline bool arch_has_clwb(void) {
   return static_cpu_has(X86_FEATURE_CLWB);
 }
 
-static struct report_sbi *reportfs_get_sbi(void) { return g_report_sbi; }
+struct report_sbi *reportfs_get_sbi(void) { return g_report_sbi; }
 EXPORT_SYMBOL(reportfs_get_sbi);
 
 static int reportfs_fill_super(struct super_block *sb, void *data, int silent) {
@@ -60,8 +60,9 @@ static int reportfs_fill_super(struct super_block *sb, void *data, int silent) {
   pfn_t __pfn_t;
   long size;
   int ret;
+  u64 part_off;
 
-  sbi = kzalloc(sizeof(struct report_sbi), GFP_KERNEL);
+  sbi = kzalloc(sizeof(struct report_sbi), GFP_ATOMIC);
   if (!sbi)
     return -ENOMEM;
 
@@ -76,13 +77,13 @@ static int reportfs_fill_super(struct super_block *sb, void *data, int silent) {
   sb->s_fs_info = sbi;
   sbi->sb = sb;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 6)
-  ret = bdev_dax_supported(sb, PAGE_SIZE);
-#else
-  ret = bdev_dax_supported(sb->s_bdev, PAGE_SIZE);
-#endif
-  pr_info("%s: dax_supported = %d; bdev->super=0x%p", __func__, ret,
-          sb->s_bdev->bd_super);
+// #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 6)
+//   ret = bdev_dax_supported(sb, PAGE_SIZE);
+// #else
+  // ret = dax_supported(dax_dev, sb->s_bdev);
+	ret = true;
+// #endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(4, 17, 6)
   if (ret) {
 #else
@@ -94,13 +95,14 @@ static int reportfs_fill_super(struct super_block *sb, void *data, int silent) {
 
   sbi->s_bdev = sb->s_bdev;
 
-  dax_dev = fs_dax_get_by_host(sb->s_bdev->bd_disk->disk_name);
+  // dax_dev = fs_dax_get_by_bdev(sb->s_bdev->bd_disk->disk_name);
+  dax_dev = fs_dax_get_by_bdev(sbi->s_bdev, &part_off, NULL, NULL);
   if (!dax_dev) {
     pr_err("Couldn't retrieve DAX device.\n");
     return -EINVAL;
   }
 
-  size = dax_direct_access(dax_dev, 0, LONG_MAX / PAGE_SIZE, &virt_addr,
+  size = dax_direct_access(dax_dev, 0, LONG_MAX / PAGE_SIZE, DAX_ACCESS, &virt_addr,
                            &__pfn_t) *
          PAGE_SIZE;
   if (size <= 0) {
@@ -129,8 +131,9 @@ static int reportfs_fill_super(struct super_block *sb, void *data, int silent) {
 #else
   root->i_atime = root->i_mtime = root->i_ctime = ktime_to_timespec64(ktime_get_real());
 #endif
-  inode_init_owner(root, NULL, S_IFDIR);
-
+  inode_init_owner(&nop_mnt_idmap, root, NULL, S_IFDIR);
+  pr_info("%s: dax_supported = %d; bdev->super=0x%p", __func__, ret,
+          sb->s_bdev->bd_super);
   sb->s_root = d_make_root(root);
   if (!sb->s_root) {
     pr_err("d_make_root failed\n");

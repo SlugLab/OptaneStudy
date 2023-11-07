@@ -4,7 +4,7 @@
 
 obj-m += repfs.o latfs.o
 
-ccflags-y+=-mmmx -msse2 -mavx -mpreferred-stack-boundary=4
+ccflags-y+=-mmmx -msse2 -mavx -mavx512f -mpreferred-stack-boundary=4
 repfs-y := rep.o
 latfs-y := lat.o proc.o misc.o memaccess.o tasks.o
 
@@ -14,16 +14,10 @@ avx2_supported := $(call as-instr,vpgatherdd %ymm0$(comma)(%eax$(comma)%ymm1\
 
 AEP := $(shell cat /proc/cpuinfo  | grep clwb | wc -l)
 
-ifeq ($(AEP), 0)
-  ccflags-y+= -DNOAVX512
-else
-  ccflags-y+= -DAEP_SUPPORTED
-endif
 
-ifeq ($(PERF), 1)
-  ccflags-y+=-DUSE_PERF
-  latfs-y+=perf_util.o
-endif
+ccflags-y+= -DAEP_SUPPORTED
+ccflags-y+=-DUSE_PERF
+latfs-y+=perf_util.o
 
 ccflags-y+= -DFENCE
 
