@@ -28,7 +28,7 @@
 #include "perf_util.h"
 #endif
 
-//#define KSTAT 1
+#define KSTAT 1
 
 #define kr_info(string, args...) \
             do { printk(KERN_INFO "{%d}" string, ctx->core_id, ##args); } while (0)
@@ -37,10 +37,10 @@ inline void wait_for_stop(void)
 {
 	/* Wait until we are told to stop */
 	for (;;) {
-		set_current_state(TASK_INTERRUPTIBLE);
+	  // set_current_state(TASK_INTERRUPTIBLE);
 		if (kthread_should_stop())
 			break;
-		schedule();
+		preempt_schedule_irq();
 	}
 }
 
@@ -91,17 +91,21 @@ int latency_job(void *arg)
 	struct latency_sbi *sbi = ctx->sbi;
 	long *loc = (long *)sbi->rep->virt_addr;
 	u8 *buf;
-	long result;
+	//long result;
+	uint64_t result;
 
 	long *rbuf;
 	int rpages;
 #ifdef KSTAT
-	long total;
-	long average, stddev;
-	long min, max;
+	uint64_t total;
+	uint64_t average, stddev;
+	uint64_t min, max;
 #endif
 	u8 hash = 0;
 	int skip;
+
+	kr_info("starting the job and signalling start_sem");
+	up(ctx->start_sem);
 
 	kr_info("BASIC_OP at smp id %d\n", smp_processor_id());
 	rpages = roundup((2 * BASIC_OPS_TASK_COUNT + 1) * LATENCY_OPS_COUNT * sizeof(long), PAGE_SIZE) >> PAGE_SHIFT;
@@ -144,6 +148,7 @@ int latency_job(void *arg)
 			if (result > max)
 				max = result;
 			total += result;
+			//kr_info("[%s], res %llu\n", latency_tasks_str[i], result);
 #endif
 		}
 		BENCHMARK_END(flags);
@@ -154,7 +159,7 @@ int latency_job(void *arg)
 		{
 			stddev += (rbuf[j] - average) * (rbuf[j] - average);
 		}
-		kr_info("[%d]%s avg %lu, stddev^2 %lu, max %lu, min %lu\n", i, latency_tasks_str[i], average, stddev / LATENCY_OPS_COUNT, max, min);
+		kr_info("[%d]%s avg %llu, stddev^2 %llu, max %llu, min %llu\n", i, latency_tasks_str[i], average, stddev / LATENCY_OPS_COUNT, max, min);
 #else
 		kr_info("[%d]%s Done\n", i, latency_tasks_str[i]);
 #endif
@@ -203,14 +208,14 @@ int latency_job(void *arg)
 		{
 			stddev += (rbuf[j] - average) * (rbuf[j] - average);
 		}
-		kr_info("[%d]%s avg %lu, stddev^2 %lu, max %lu, min %lu\n", i, latency_tasks_str[i], average, stddev / LATENCY_OPS_COUNT, max, min);
+		kr_info("[%d]%s avg %llu, stddev^2 %llu, max %llu, min %llu\n", i, latency_tasks_str[i], average, stddev / LATENCY_OPS_COUNT, max, min);
 #else
 		kr_info("[%d]%s done\n", i, latency_tasks_str[i]);
 #endif
 	}
 	kr_info("hash %d", hash);
 	kr_info("LATTester_LAT_END:\n");
-	wait_for_stop();
+	// wait_for_stop(); ARQ---I cannot see why you would need to wait for the single thread tests
 	return 0;
 }
 
@@ -228,6 +233,10 @@ int strided_latjob(void *arg)
 	long pages, diff;
 	int hash = 0;
 	int i;
+
+	kr_info("starting the job and signalling start_sem");
+	up(ctx->start_sem);
+
 
 	PERF_CREATE();
 
@@ -272,7 +281,7 @@ int strided_latjob(void *arg)
 	}
 	PERF_RELEASE();
 	kr_info("LATTester_LAT_END: %d\n", hash);
-	wait_for_stop();
+	// wait_for_stop(); ARQ---I cannot see why you would need to wait for the single thread tests
 	return 0;
 }
 
@@ -309,16 +318,13 @@ int sizebw_job(void *arg)
 	BENCHMARK_BEGIN(flags);
 	while (1) {
 		lfs_size_bw[op](buf, access_size, count, &seed, bitmask);
-		timing->v += access_size * count;
+		atomic64_add(PERTHREAD_CHECKSTOP, &timing->v);
 
 		if (kthread_should_stop())
-			break;
-		schedule(); // Schedule with IRQ disabled?
+		  break;
 	}
 
 	BENCHMARK_END(flags);
-	wait_for_stop();
-
 	return 0;
 }
 
@@ -345,17 +351,17 @@ int strided_bwjob(void *arg)
 
 	while (1) {
 		lfs_stride_bw[op](buf, access_size, stride_size, delay, count);
-		timing->v += access_size * count;
+		atomic64_add(access_size * count, &timing->v);
 		buf += stride_size * count;
 		if (buf + access_size * count >= region_end)
 			buf = ctx->addr;
 
 		if (kthread_should_stop())
 			break;
-		schedule();
+		//preempt_schedule_irq();
 	}
 	BENCHMARK_END(flags);
-	wait_for_stop();
+	// wait_for_stop();
 
 	return 0;
 }
@@ -373,6 +379,10 @@ int overwrite_job(void *arg)
 	int rpages;
 
 	u8 hash = 0;
+
+	kr_info("starting the job and signalling start_sem");
+	up(ctx->start_sem);
+
 
 	kr_info("OVERWRITE_OP at smp id %d\n", smp_processor_id());
 	rpages = roundup((2 * BASIC_OPS_TASK_COUNT + 1) * LATENCY_OPS_COUNT * sizeof(long), PAGE_SIZE) >> PAGE_SHIFT;
@@ -406,7 +416,7 @@ int overwrite_job(void *arg)
 
 	kr_info("Done. hash %d", hash);
 	kr_info("LATTester_LAT_END:\n");
-	wait_for_stop();
+	// wait_for_stop(); ARQ---I cannot see why you would need to wait for the single thread tests
 	return 0;
 }
 
@@ -433,6 +443,10 @@ int read_after_write_job(void *arg)
 	uint64_t *cindex;
 	uint64_t csize;
 	int ret;
+
+	kr_info("starting the job and signalling start_sem");
+	up(ctx->start_sem);
+
 
 	if (stride_size * count > GLOBAL_WORKSET)
 		count = GLOBAL_WORKSET / stride_size;
@@ -536,7 +550,7 @@ int read_after_write_job(void *arg)
 
 	BENCHMARK_END(flags);
 	kr_info("LATTester_LAT_END: %d\n", hash);
-	wait_for_stop();
+	// wait_for_stop(); ARQ---I cannot see why you would need to wait for the single thread tests
 	return 0;
 }
 
@@ -556,6 +570,9 @@ int straight_write_job(void *arg)
 	long count = workset / write_size;
 	long iter;
 	struct timespec64 tstart, tend;
+
+	kr_info("starting the job and signalling start_sem");
+	up(ctx->start_sem);
 
 
 	if (write_size * count > workset)
@@ -584,15 +601,14 @@ int straight_write_job(void *arg)
 
 		if (kthread_should_stop())
 			break;
-		schedule(); // Schedule with IRQ disabled?
+		preempt_schedule_irq(); // preempt_schedule_irq with IRQ disabled?
 	}
 	ktime_get_raw_ts64(&tend);
 
 	BENCHMARK_END(flags);
 	diff = TIMEDIFF(tstart, tend);
 	kr_info("%llx bytes written, total %lld ns.\n", workset + itersize + count * write_size, diff);
-	wait_for_stop();
-
+	// wait_for_stop(); ARQ---I cannot see why you would need to wait for the single thread tests
 	return 0;
 }
 
@@ -677,11 +693,11 @@ int align_bwjob(void *arg)
 				buf = base + channel * PAGE_SIZE + ((r & bitmask) * 6 * PAGE_SIZE) + r1 + imc2;
 				lfs_stride_bw[op](buf, access_size, 0, 0, 1); /* under 4096 access needs unrolling */
 			}
-			timing->v += 4096 * access_size;
+			atomic64_add(4096 * access_size, &timing->v);
 
 			if (kthread_should_stop())
 				break;
-			schedule();
+			preempt_schedule_irq();
 		}
 	} else if (sbi->align == ALIGN_PERDIMM) {
 		while (1) {
@@ -706,11 +722,11 @@ int align_bwjob(void *arg)
 				buf = base + dimm*PAGE_SIZE + ((r & bitmask) * 6 * PAGE_SIZE) + r1;
 				lfs_stride_bw[op](buf, access_size, 0, 0, 1); /* under 4096 access needs unrolling */
 			}
-			timing->v += 4096 * access_size;
+			atomic64_add(4096 * access_size, &timing->v);
 
 			if (kthread_should_stop())
 				break;
-			schedule();
+			preempt_schedule_irq();
 		}
 	} else if (sbi->align == ALIGN_NI_GLOBAL) {
 		while (1) {
@@ -731,11 +747,11 @@ int align_bwjob(void *arg)
 				buf = base + (r & bitmask) +  DIMM_SIZE * (r % 6);
 				lfs_stride_bw[op](buf, access_size, 0, 0, 1); /* under 4096 access needs unrolling */
 			}
-			timing->v += 4096 * access_size;
+			atomic64_add(4096 * access_size, &timing->v);
 
 			if (kthread_should_stop())
 				break;
-			schedule();
+			preempt_schedule_irq();
 		}
 	} else {
 		while (1) { // Global, Per-Thread, Per-iMC, NI (PD)
@@ -756,11 +772,11 @@ int align_bwjob(void *arg)
 				buf = base + (r & bitmask) + imc2;
 				lfs_stride_bw[op](buf, access_size, 0, 0, 1); /* under 4096 access needs unrolling */
 			}
-			timing->v += 4096 * access_size;
+			atomic64_add(4096 * access_size, &timing->v);
 
 			if (kthread_should_stop())
 				break;
-			schedule();
+			preempt_schedule_irq();
 		}
 	}
 	BENCHMARK_END(flags);
@@ -807,10 +823,10 @@ int cachefence_bwjob(void *arg)
 				cachefence(buf, access_size, cache, fence);
 				buf += access_size;
 			}
-			timing->v += access_size * count;
+			atomic64_add(access_size * count, &timing->v);
 			if (kthread_should_stop())
 				break;
-			schedule();
+			preempt_schedule_irq();
 		}
 	} else {
 		while (1)
@@ -820,12 +836,12 @@ int cachefence_bwjob(void *arg)
 				cachefence(buf, access_size, cache, fence);
 				buf += access_size;
 			}
-			timing->v += access_size * count;
+			atomic64_add(access_size * count, &timing->v);
 			if (buf + access_size * count >= buf_end)
 				buf = ctx->addr;
 			if (kthread_should_stop())
 				break;
-			schedule();
+			preempt_schedule_irq();
 		}
 	}
 	BENCHMARK_END(flags);
@@ -851,6 +867,9 @@ int cacheprobe_job(void *arg)
 	uint64_t aiters;
 	//uint64_t iters = 1; /* 256MB by default */
 	long i, j;
+
+	kr_info("starting the job and signalling start_sem");
+	up(ctx->start_sem);
 
 	if (stride * count > DIMM_SIZE) {
 		count = DIMM_SIZE / stride;
@@ -907,7 +926,7 @@ int imcprobe_job(void *arg)
 		imcprobe(buf, buf_end, count);
 		if (kthread_should_stop())
 			break;
-		schedule(); // Schedule with IRQ disabled?
+		preempt_schedule_irq(); // preempt_schedule_irq with IRQ disabled?
 	}
 	BENCHMARK_END(flags);
 	ktime_get_raw_ts64(&tend);
@@ -941,14 +960,14 @@ int seq_bwjob(void *arg)
 	BENCHMARK_BEGIN(flags);
 	while (1) {
 		lfs_seq_bw[op](buf, buf+step, access_size);
-		timing->v += step;
+		atomic64_add(step, &timing->v);
 		buf += step;
 		if (buf >= buf_end)
 			buf = ctx->addr;
 
 		if (kthread_should_stop())
 			break;
-		schedule();
+		preempt_schedule_irq();
 	}
 	BENCHMARK_END(flags);
 	wait_for_stop();

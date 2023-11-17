@@ -161,6 +161,10 @@ inline void latencyfs_new_threads(struct latency_sbi *sbi, bench_func_t func)
 	sbi->timing = kmalloc(sizeof(struct latencyfs_timing) * cnt, GFP_ATOMIC);
 	for (i = 0; i < cnt; i++) {
 		ctx = &sbi->ctx[i];
+
+		ctx->start_sem = kmalloc(sizeof(struct semaphore), GFP_ATOMIC);
+		
+		sema_init(ctx->start_sem, 0);
 		ctx->sbi = sbi;
 		ctx->core_id = i;
 		switch (sbi->align) {
@@ -184,7 +188,7 @@ inline void latencyfs_new_threads(struct latency_sbi *sbi, bench_func_t func)
 			default:
 				pr_err("Undefined align mode %d\n", sbi->align);
 		}
-		sbi->timing[i].v = 0;
+		atomic64_set(&sbi->timing[i].v, 0);
 		ctx->seed_addr = (u8 *)sbi->rep->virt_addr + (i * PERTHREAD_WORKSET);
 		sprintf(kthread_name, "lattester%d", ctx->core_id);
 		sbi->workers[i] = kthread_create(func, (void *)ctx, kthread_name);
@@ -236,9 +240,13 @@ inline void latencyfs_monitor_threads(struct latency_sbi *sbi)
 		msleep(1000);
 		total = 0;
 		for (i = 0; i < sbi->worker_cnt; i++) {
-			total += sbi->timing[i].v;
+		  // RACE!
+		  
+		  total += atomic64_read(&sbi->timing[i].v);
 		}
-		printk(KERN_ALERT "%d\t%lld (%d)\n", elapsed + 1, (total - last) / MB, smp_processor_id());
+		printk(KERN_ALERT "monitor: %d\t%lld\n",
+		       elapsed + 1,
+		       (total - last) / MB);
 
 		last = total;
 		elapsed ++;
@@ -273,6 +281,12 @@ int setup_singlethread_op(struct latency_sbi *sbi, int op)
 			return -EINVAL;
 	}
 	wake_up_process(sbi->workers[0]);
+
+	// ARQ---I think this is necessary to ensure that we wait for the full task to finish?
+	printk("singlethread_op about to wait on semaphore");
+	down(sbi->ctx[0].start_sem);
+	printk("singlethread_op finished waiting!");
+	kthread_stop(sbi->workers[0]);
 	return 0;
 }
 

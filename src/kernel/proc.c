@@ -255,6 +255,8 @@ static ssize_t latencyfs_proc_write(struct file *file, const char __user *buffer
 
 	module_put(THIS_MODULE);
 
+	pr_info("Finished!\n");
+	  
 	if (ret)
 		return ret;
 	else

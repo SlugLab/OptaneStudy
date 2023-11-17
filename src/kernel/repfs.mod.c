@@ -33,31 +33,31 @@ MODULE_INFO(retpoline, "Y");
 
 KSYMTAB_FUNC(reportfs_get_sbi, "", "");
 
-SYMBOL_CRC(reportfs_get_sbi, 0x7698337f, "");
+SYMBOL_CRC(reportfs_get_sbi, 0x1350a12d, "");
 
 static const struct modversion_info ____versions[]
 __used __section("__versions") = {
-	{ 0x45475e33, "inode_init_owner" },
+	{ 0x24ea3736, "inode_init_owner" },
 	{ 0xc60d0620, "__num_online_cpus" },
-	{ 0x3e179a8f, "new_inode" },
-	{ 0x24c15d72, "fs_dax_get_by_bdev" },
-	{ 0x5e977260, "unregister_filesystem" },
-	{ 0xc41948c3, "d_make_root" },
-	{ 0x6e553ffb, "register_filesystem" },
+	{ 0x81288c24, "new_inode" },
+	{ 0xf6df7783, "fs_dax_get_by_bdev" },
+	{ 0xc4f218f2, "unregister_filesystem" },
+	{ 0x89a376a7, "d_make_root" },
+	{ 0x81b66aa5, "register_filesystem" },
 	{ 0xbdfb6dbb, "__fentry__" },
 	{ 0x2d609547, "dax_direct_access" },
-	{ 0xb053a365, "kill_block_super" },
+	{ 0x40fb8d99, "kill_block_super" },
 	{ 0x122c3a7e, "_printk" },
 	{ 0xf0fdf6cb, "__stack_chk_fail" },
 	{ 0x65929cae, "ns_to_timespec64" },
 	{ 0x5b8239ca, "__x86_return_thunk" },
-	{ 0xb117a9d, "mount_bdev" },
+	{ 0x2300d7c4, "mount_bdev" },
 	{ 0x92b38218, "boot_cpu_data" },
-	{ 0x1c9b2a7, "kmalloc_trace" },
+	{ 0xf0dfe76a, "kmalloc_trace" },
 	{ 0xc4f0da12, "ktime_get_with_offset" },
-	{ 0x92ec0873, "kmalloc_caches" },
+	{ 0x5a35e5af, "kmalloc_caches" },
 	{ 0xbc314156, "nop_mnt_idmap" },
-	{ 0xb050b444, "module_layout" },
+	{ 0x78d867f, "module_layout" },
 };
 
 MODULE_INFO(depends, "");

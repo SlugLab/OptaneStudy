@@ -1,0 +1,25 @@
+task=1,message=BASIC_LAT_TEST
+[236295.423964] {0}[0]load-fence-64 avg 583, stddev^2 41502, max 87170, min 502
+[236296.831351] {0}[1]ntload-fence-64 avg 583, stddev^2 25961, max 34102, min 502
+[236298.239371] {0}[2]load-fence-movq-64 avg 586, stddev^2 23514, max 30862, min 506
+[236298.567079] {0}[3]store-fence-64 avg 209, stddev^2 6173, max 21840, min 196
+[236299.207720] {0}[4]store-clflush-64 avg 805, stddev^2 144300, max 38334, min 672
+[236299.866120] {0}[5]store-clwb-64 avg 838, stddev^2 153051, max 38414, min 684
+[236300.509035] {0}[6]store-clflushopt-64 avg 808, stddev^2 163439, max 123040, min 668
+[236302.187493] {0}[7]nstore-fence-64 avg 998, stddev^2 341342, max 96302, min 822
+[236302.515916] {0}[8]store-fence-movq-64 avg 220, stddev^2 7474, max 30474, min 204
+[236303.153950] {0}[9]store-clflush-movq-64 avg 815, stddev^2 141531, max 38380, min 678
+[236304.546635] {0}[10]load-fence-movq-8 avg 572, stddev^2 22112, max 24116, min 488
+[236304.732399] {0}[11]baseline avg 192, stddev^2 7446, max 23760, min 178
+[236306.265265] {0}[0]load-fence-64 avg 587, stddev^2 22180, max 40400, min 502
+[236307.788095] {0}[1]ntload-fence-64 avg 588, stddev^2 37708, max 86240, min 506
+[236309.309731] {0}[2]load-fence-movq-64 avg 591, stddev^2 24811, max 30008, min 510
+[236309.921836] {0}[3]store-fence-64 avg 212, stddev^2 8686, max 28106, min 196
+[236310.849500] {0}[4]store-clflush-64 avg 813, stddev^2 200640, max 41742, min 668
+[236311.795226] {0}[5]store-clwb-64 avg 847, stddev^2 201810, max 39474, min 692
+[236312.722182] {0}[6]store-clflushopt-64 avg 815, stddev^2 198453, max 38372, min 670
+[236314.448921] {0}[7]nstore-fence-64 avg 1000, stddev^2 332435, max 38466, min 826
+[236315.059554] {0}[8]store-fence-movq-64 avg 223, stddev^2 10783, max 43868, min 208
+[236315.981723] {0}[9]store-clflush-movq-64 avg 821, stddev^2 195816, max 96022, min 666
+[236317.483538] {0}[10]load-fence-movq-8 avg 572, stddev^2 26948, max 40720, min 490
+[236317.726183] {0}[11]baseline avg 194, stddev^2 4796, max 18052, min 178

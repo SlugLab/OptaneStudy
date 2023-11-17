@@ -1,6 +1,6 @@
 {
   "media": "lpmem",
-  "interleaving": "1",
+  "interleaving": "0",
   "local": "1",
   "avgpower": "15000",
   "peakpower": "20000",

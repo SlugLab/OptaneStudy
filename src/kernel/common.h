@@ -120,6 +120,72 @@
                                 "mov %%rax, %[t1] \n" \
                                 "mov %%rdx, %[t2] \n"
 
+
+/* 
+ *  timing testy baby
+ */
+
+uint64_t timing_test(char *addr) {
+    uint64_t t1 = 0, t2 = 0;
+    int32_t t1cpu = 1, t2cpu = 1;
+    (void)addr; // unused
+    KERNEL_BEGIN
+      
+    asm volatile(
+		 CLEAR_PIPELINE
+		 "rdtscp \n"					     \
+		 "lfence \n"					     \
+		 "shl $32, %%rdx \n"				     \
+		 "or  %%rax, %%rdx \n"				     \
+		 "mov %%rdx, %[t1] \n"				     \
+		 "mov %%ecx, %[t1cpu]\n"
+		 : [t1] "=r" (t1), [t1cpu] "=r" (t1cpu)
+		 :
+		 : "rax", "rdx", "rcx");
+
+
+    msleep(1000);
+
+    asm volatile(
+		 "mfence\n"					     \
+		 "rdtscp \n"					     \
+		 "lfence \n"					     \
+		 "shl $32, %%rdx \n"				     \
+		 "or  %%rax, %%rdx \n"				     \
+		 "mov %%rdx, %[t2] \n"				     \
+		 "mov %%ecx, %[t2cpu] \n"
+		 : [t2] "=r" (t2), [t2cpu] "=r" (t2cpu)
+		 :
+		 : "rax", "rdx", "rcx");
+    KERNEL_END
+
+      // results indicate a base frequency of 2GHz for the tsc (!?)
+      return t2 - t1;
+}
+
+
+
+/* 
+ *  8 byter.
+ */
+
+uint64_t load_8byte_fence_movq(char *addr) {
+    uint64_t t1 = 0, t2 = 0;
+    KERNEL_BEGIN
+    asm volatile(LOAD_ADDR
+        FLUSH_CACHE_LINE
+        CLEAR_PIPELINE
+        TIMING_BEG
+        "movq 0*8(%%rsi), %%rdx \n"
+        TIMING_END
+        : [t1] "=r" (t1), [t2] "=r" (t2)
+        : [memarea] "r" (addr)
+        : REGISTERS_NONSSE);
+    KERNEL_END
+    return t2 - t1;
+}
+
+
 /*
  * 64-byte benchmarks
  */
@@ -973,6 +1039,7 @@ uint64_t(*latency_funcs_256byte[])(char *) = {
 const char *latency_bench_map[] = {
     "load-fence",
     "ntload-fence",
+    "load-fence-movq",
     "store-fence",
     "store-clflush",
     "store-clwb",
@@ -980,7 +1047,6 @@ const char *latency_bench_map[] = {
     "nstore-fence",
     "store-fence-movq",
     "store-clflush-movq",
-    "load-fence-movq",
     "baseline"
 };
 
@@ -989,6 +1055,7 @@ const char *latency_bench_map[] = {
 enum latency_tasks {
     load_fence_64 = 0,
     ntload_fence_64,
+    load_fence_movq_64,
     store_fence_64,
     store_clflush_64,
 #ifdef AEP_SUPPORTED
@@ -998,8 +1065,9 @@ enum latency_tasks {
     nstore_fence_64,
     store_fence_movq_64,
     store_clflush_movq_64,
-    load_fence_movq_64,
-
+    load_fence_movq_8,
+    //timing_test_8,
+    /*
     load_fence_128,
     ntload_fence_128,
     store_fence_128,
@@ -1025,6 +1093,7 @@ enum latency_tasks {
     store_fence_movq_256,
     store_clflush_movq_256,
     load_fence_movq_256,
+    */
     task_baseline,
 
     BASIC_OPS_TASK_COUNT
@@ -1043,7 +1112,9 @@ static const int latency_tasks_skip[BASIC_OPS_TASK_COUNT] = {
 64,
 64,
 64,
-
+8,
+//8,
+/*
 128,
 128,
 128,
@@ -1069,12 +1140,14 @@ static const int latency_tasks_skip[BASIC_OPS_TASK_COUNT] = {
 256,
 256,
 256,
+*/
 0
 };
 
 static const char *latency_tasks_str[BASIC_OPS_TASK_COUNT] = {
     "load-fence-64",
     "ntload-fence-64",
+    "load-fence-movq-64",
     "store-fence-64",
     "store-clflush-64",
 #ifdef AEP_SUPPORTED
@@ -1084,8 +1157,9 @@ static const char *latency_tasks_str[BASIC_OPS_TASK_COUNT] = {
     "nstore-fence-64",
     "store-fence-movq-64",
     "store-clflush-movq-64",
-    "load-fence-movq-64",
-
+    "load-fence-movq-8",
+    //"timing-test",
+    /*
     "load-fence-128",
     "ntload-fence-128",
     "store-fence-128",
@@ -1111,6 +1185,7 @@ static const char *latency_tasks_str[BASIC_OPS_TASK_COUNT] = {
     "store-fence-movq-256",
     "store-clflush-movq-256",
     "load-fence-movq-256",
+    */
     "baseline"
 };
 
@@ -1118,6 +1193,7 @@ static const char *latency_tasks_str[BASIC_OPS_TASK_COUNT] = {
 uint64_t (*bench_func[BASIC_OPS_TASK_COUNT])(char *) = {
     &load_64byte_fence,
     &load_64byte_fence_nt,
+    &load_64byte_fence_movq,
     &store_64byte_fence,
     &store_64byte_clflush,
 #ifdef AEP_SUPPORTED
@@ -1127,9 +1203,10 @@ uint64_t (*bench_func[BASIC_OPS_TASK_COUNT])(char *) = {
     &nstore_64byte_fence,
     &store_64byte_fence_movq,
     &store_64byte_clflush_movq,
-    &load_64byte_fence_movq,
+    &load_8byte_fence_movq,
+    //&timing_test,
 
-    &load_128byte_fence,
+    /*    &load_128byte_fence,
     &load_128byte_fence_nt,
     &store_128byte_fence,
     &store_128byte_clflush,
@@ -1155,6 +1232,7 @@ uint64_t (*bench_func[BASIC_OPS_TASK_COUNT])(char *) = {
     &store_256byte_fence_movq,
     &store_256byte_clflush_movq,
     &load_256byte_fence_movq,
+    */
     &baseline
 };
 

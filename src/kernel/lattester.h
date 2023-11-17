@@ -20,11 +20,20 @@
 #include <linux/uaccess.h>
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>
+#include <linux/semaphore.h>
+#else
+
+// look at this hacky bullshit
+typedef struct {
+	int counter;
+} atomic64_t;
 #endif
+
 
 #define CACHELINE_BITS			(6)
 #define CACHELINE_SIZE			(64)
 #define LATENCY_OPS_COUNT		1048576L
+//#define LATENCY_OPS_COUNT		60L
 
 /*
  * Content on ReportFS
@@ -151,7 +160,7 @@ typedef int(bench_func_t)(void *);
 
 /* Fine if the struct is not cacheline aligned */
 struct latencyfs_timing {
-	uint64_t v;
+        atomic64_t v;
 	char padding[56]; /* 64 - 8 */
 }__attribute((__packed__));
 
@@ -194,6 +203,7 @@ struct latencyfs_worker_ctx {
 	int core_id;
 	uint8_t *addr;
 	uint8_t *seed_addr; /* for multi-threaded tasks only */
+        struct semaphore *start_sem;
 	struct latency_sbi *sbi;
 };
 
